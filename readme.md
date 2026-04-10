@@ -4,6 +4,8 @@
 
 **Please see [this readme](https://github.com/dangeng/visual_anagrams/blob/main/readme_factorized_diffusion.md) for info about factorized diffusion.**
 
+**For the SDXL latent-space hybrid extension in this workspace, see [`readme_latent_hybrid.md`](./readme_latent_hybrid.md).**
+
 # Visual Anagrams: Generating Multi-View Optical Illusions with Diffusion Models
 
 CVPR 2024 (Oral)
