@@ -18,7 +18,7 @@ from visual_anagrams.latent_hybrid import (
     sample_latent_hybrid,
     save_hybrid_sample,
 )
-from visual_anagrams.reward import DEFAULT_HF_CACHE_DIR, HPSv3RewardModel, configure_hf_cache
+from visual_anagrams.reward import DEFAULT_HF_CACHE_DIR, HPSv2RewardModel, configure_hf_cache
 from visual_anagrams.rl import (
     create_unet_lora_layers,
     select_stop_after_step_index,
@@ -28,7 +28,7 @@ from visual_anagrams.rl import (
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Reward-tune SDXL latent hybrids with HPSv3.")
+    parser = argparse.ArgumentParser(description="Reward-tune SDXL latent hybrids with HPSv2.")
     parser.add_argument("--output_dir", default="results_latent_reward", type=str)
     parser.add_argument("--prompt_close", default=None, type=str)
     parser.add_argument("--prompt_far", default=None, type=str)
@@ -36,9 +36,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--negative_prompt", default="", type=str)
     parser.add_argument("--prompt_pairs_jsonl", default=None, type=str)
     parser.add_argument("--sdxl_model_path", default="/data/models/sdxl-base-1.0", type=str)
-    parser.add_argument("--hpsv3_repo_path", default=None, type=str)
-    parser.add_argument("--hpsv3_checkpoint_path", default=None, type=str)
-    parser.add_argument("--hpsv3_config_path", default=None, type=str)
+    parser.add_argument("--hpsv2_repo_path", default="/data/models/HPSv2-repo", type=str)
+    parser.add_argument("--hpsv2_checkpoint_path", default=None, type=str)
+    parser.add_argument("--hpsv2_version", default="v2.1", choices=["v2.0", "v2.1"])
     parser.add_argument("--scheduler", default="ddim", choices=["ddim", "euler"])
     parser.add_argument("--height", default=1024, type=int)
     parser.add_argument("--width", default=1024, type=int)
@@ -147,11 +147,11 @@ def main() -> None:
         lr=args.learning_rate,
         weight_decay=args.weight_decay,
     )
-    reward_model = HPSv3RewardModel(
+    reward_model = HPSv2RewardModel(
         device=args.device,
-        repo_path=args.hpsv3_repo_path,
-        checkpoint_path=args.hpsv3_checkpoint_path,
-        config_path=args.hpsv3_config_path,
+        repo_path=args.hpsv2_repo_path,
+        checkpoint_path=args.hpsv2_checkpoint_path,
+        version=args.hpsv2_version,
         cache_dir=args.hf_cache_dir,
     )
 

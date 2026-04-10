@@ -1,4 +1,4 @@
-# Latent Hybrid Images with SDXL + HPSv3
+# Latent Hybrid Images with SDXL + HPSv2
 
 This extension adds a latent-space version of the Visual Anagrams / Factorized Diffusion hybrid-image pipeline.
 
@@ -20,20 +20,21 @@ You can download the required assets with:
 
 ```bash
 uv run python download_models.py \
-  --download_sdxl \
-  --download_hpsv3_checkpoint \
-  --download_qwen_backbone \
-  --clone_hpsv3_repo
+  --download_sdxl_minimal \
+  --download_hpsv2_checkpoint \
+  --clone_hpsv2_repo
 ```
 
 Expected layout:
 
 - `/data/models/sdxl-base-1.0`
-- `/data/models/HPSv3-weights`
-- `/data/models/Qwen2-VL-7B-Instruct`
-- `/data/models/HPSv3`
+- `/data/models/HPSv2-weights/HPS_v2.1_compressed.pt`
+- `/data/models/HPSv2-repo`
 
-If you already have `hpsv3` installed as a package, cloning the repo is optional.
+Notes:
+
+- HPSv2 only needs the compressed checkpoint for weights.
+- SDXL still needs the diffusers configs/tokenizers/scheduler in addition to the main weight files, so the downloader grabs a minimal diffusers snapshot instead of the whole repository.
 
 ## 2. Baseline latent inference
 
@@ -93,7 +94,7 @@ Outputs:
 
 `generate_latent_hybrid.py` is useful when you simply want one output, optionally with a tuned LoRA loaded.
 
-## 4. Reward-tune with HPSv3
+## 4. Reward-tune with HPSv2
 
 `draft_k` tunes the last `K` denoising steps.
 
@@ -104,8 +105,9 @@ uv run python train_latent_hybrid_reward.py \
   --prompt_far "a gothic cathedral" \
   --style "an oil painting of" \
   --sdxl_model_path /data/models/sdxl-base-1.0 \
-  --hpsv3_repo_path /data/models/HPSv3 \
-  --hpsv3_checkpoint_path /data/models/HPSv3-weights/HPSv3.safetensors \
+  --hpsv2_repo_path /data/models/HPSv2-repo \
+  --hpsv2_checkpoint_path /data/models/HPSv2-weights/HPS_v2.1_compressed.pt \
+  --hpsv2_version v2.1 \
   --algo draft_k \
   --reward_train_steps 5 \
   --max_iterations 200 \
@@ -122,8 +124,9 @@ uv run python train_latent_hybrid_reward.py \
   --prompt_far "a gothic cathedral" \
   --style "an oil painting of" \
   --sdxl_model_path /data/models/sdxl-base-1.0 \
-  --hpsv3_repo_path /data/models/HPSv3 \
-  --hpsv3_checkpoint_path /data/models/HPSv3-weights/HPSv3.safetensors \
+  --hpsv2_repo_path /data/models/HPSv2-repo \
+  --hpsv2_checkpoint_path /data/models/HPSv2-weights/HPS_v2.1_compressed.pt \
+  --hpsv2_version v2.1 \
   --algo drtune \
   --reward_train_steps 5 \
   --early_stop_max_steps 3 \
@@ -156,4 +159,5 @@ uv run python generate_latent_hybrid.py \
 - `prompt_close` is the image you want to see nearby.
 - `prompt_far` is the image you want to see after blur / distance.
 - The internal factorization order is reversed to match hybrid-image perception.
-- HPSv3 support is loaded lazily. If imports fail, either install `hpsv3` or clone the official repository into `/data/models/HPSv3`.
+- HPSv2 support is loaded from the official repo checkout at `/data/models/HPSv2-repo`.
+- The HPSv2 reward checkpoint is a `.pt` file, not a `.safetensors` file.
