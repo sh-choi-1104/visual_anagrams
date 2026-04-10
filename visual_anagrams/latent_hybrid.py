@@ -53,11 +53,20 @@ def load_sdxl_pipeline(
             "Download it first into `/data/models`, or pass `--allow_remote` with a Hugging Face repo id."
         )
 
+    # The minimal local snapshot stores only `*.fp16.safetensors` files, so diffusers
+    # must be told to load the `fp16` variant explicitly.
+    variant = None
+    fp16_only_unet = (model_path / "unet" / "diffusion_pytorch_model.fp16.safetensors").exists()
+    default_unet = (model_path / "unet" / "diffusion_pytorch_model.safetensors").exists()
+    if fp16_only_unet and not default_unet:
+        variant = "fp16"
+
     pipeline = StableDiffusionXLPipeline.from_pretrained(
         str(model_path),
         torch_dtype=torch_dtype,
         use_safetensors=True,
         local_files_only=local_files_only,
+        variant=variant,
     )
 
     scheduler_name = scheduler_name.lower()
