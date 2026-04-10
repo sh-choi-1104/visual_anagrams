@@ -3,12 +3,27 @@ from pathlib import Path
 from PIL import Image
 
 import torch
-from diffusers import DiffusionPipeline
+from diffusers import DiffusionPipeline, IFPipeline, IFSuperResolutionPipeline
 import torchvision.transforms.functional as TF
 
 from visual_anagrams.views import get_views
 from visual_anagrams.samplers import sample_stage_1, sample_stage_2
 from visual_anagrams.utils import add_args, save_illusion, save_metadata
+
+
+def configure_pipeline_device(pipeline, device):
+    target_device = torch.device(device)
+    if target_device.type == "cuda":
+        if not torch.cuda.is_available():
+            raise RuntimeError("CUDA device requested, but torch.cuda.is_available() is False.")
+
+        gpu_id = target_device.index
+        if gpu_id is None:
+            gpu_id = torch.cuda.current_device()
+        pipeline.enable_model_cpu_offload(gpu_id=gpu_id)
+        return pipeline
+
+    return pipeline.to(target_device)
 
 
 
@@ -29,22 +44,20 @@ else:
     ref_im = None
 
 # Make DeepFloyd IF stage I
-stage_1 = DiffusionPipeline.from_pretrained(
+stage_1 = IFPipeline.from_pretrained(
                 "DeepFloyd/IF-I-M-v1.0",
                 variant="fp16",
                 torch_dtype=torch.float16)
-stage_1.enable_model_cpu_offload()
-stage_1 = stage_1.to(args.device)
+stage_1 = configure_pipeline_device(stage_1, args.device)
 
 # Make DeepFloyd IF stage II
-stage_2 = DiffusionPipeline.from_pretrained(
+stage_2 = IFSuperResolutionPipeline.from_pretrained(
                 "DeepFloyd/IF-II-M-v1.0",
                 text_encoder=None,
                 variant="fp16",
                 torch_dtype=torch.float16,
             )
-stage_2.enable_model_cpu_offload()
-stage_2 = stage_2.to(args.device)
+stage_2 = configure_pipeline_device(stage_2, args.device)
 
 # Make DeepFloyd IF stage III (which is just Stable Diffusion 4x Upsampler)
 if args.generate_1024:
@@ -52,8 +65,7 @@ if args.generate_1024:
                     "stabilityai/stable-diffusion-x4-upscaler", 
                     torch_dtype=torch.float16
                 )
-    stage_3.enable_model_cpu_offload()
-    stage_3 = stage_3.to(args.device)
+    stage_3 = configure_pipeline_device(stage_3, args.device)
 
 # Get prompt embeddings
 prompts = [f'{args.style} {p}'.strip() for p in args.prompts]

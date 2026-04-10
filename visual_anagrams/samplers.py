@@ -6,6 +6,19 @@ import torchvision.transforms.functional as TF
 
 from diffusers.utils.torch_utils import randn_tensor
 
+
+def get_pipeline_execution_device(model):
+    execution_device = getattr(model, "_execution_device", None)
+    if execution_device is not None:
+        return execution_device
+
+    model_device = getattr(model, "device", None)
+    if model_device is not None:
+        return torch.device(model_device)
+
+    return torch.device("cpu")
+
+
 @torch.no_grad()
 def sample_stage_1(model,
                    prompt_embeds,
@@ -19,8 +32,7 @@ def sample_stage_1(model,
 
     # Params
     num_images_per_prompt = 1
-    #device = model.device
-    device = torch.device('cuda')   # Sometimes model device is cpu???
+    device = get_pipeline_execution_device(model)
     height = model.unet.config.sample_size
     width = model.unet.config.sample_size
     batch_size = 1      # TODO: Support larger batch sizes, maybe
@@ -159,7 +171,7 @@ def sample_stage_2(model,
     num_prompts = prompt_embeds.shape[0]
     height = model.unet.config.sample_size
     width = model.unet.config.sample_size
-    device = model.device
+    device = get_pipeline_execution_device(model)
     num_images_per_prompt = 1
 
     # For CFG

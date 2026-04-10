@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "visual-anagrams"
+version = "0.1.0"
+description = "Visual Anagrams and Factorized Diffusion experiments with DeepFloyd IF."
+readme = "readme.md"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "accelerate>=1.13,<2",
+    "diffusers>=0.37.1,<0.38",
+    "einops>=0.8,<1",
+    "huggingface-hub>=1.10,<2",
+    "imageio>=2.37,<3",
+    "imageio-ffmpeg>=0.6,<1",
+    "numpy>=2.4,<3",
+    "pillow>=12.2,<13",
+    "safetensors>=0.7,<1",
+    "sentencepiece>=0.2,<1",
+    "torch>=2.11,<2.12",
+    "torchvision>=0.26,<0.27",
+    "tqdm>=4.67,<5",
+    "transformers>=5.5,<6",
+]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["visual_anagrams*"]

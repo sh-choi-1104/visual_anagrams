@@ -32,19 +32,18 @@ For people with, or willing to obtain, a Colab Pro subscription we also have the
 
 ## Installation
 
-### Conda Environment
+### uv Environment
 
-Create a conda env by running (only on Linux):
-
-```
-conda env create -f environment.yml
-```
-
-and then activate it by running 
+We recommend using [`uv`](https://docs.astral.sh/uv/) and the project-local `.venv`:
 
 ```
-conda activate visual_anagrams
+uv sync
+source .venv/bin/activate
 ```
+
+The project is configured for Python 3.11 via [`.python-version`](./.python-version), so `uv` will install a matching interpreter automatically if needed.
+
+If you still want a Conda fallback, [`environment.yml`](./environment.yml) mirrors the same top-level package set.
 
 ### DeepFloyd
 
@@ -57,7 +56,7 @@ Before using DeepFloyd IF, you must accept its usage conditions. To do so:
 3. Log in locally by running
 
 ```
-python huggingface_login.py
+uv run python huggingface_login.py
 ```
 
 and entering your [Hugging Face Hub access token](https://huggingface.co/docs/hub/security-tokens#what-are-user-access-tokens) when prompted. It does not matter how you answer the `Add token as git credential? (Y/n)` question.
@@ -70,7 +69,7 @@ and entering your [Hugging Face Hub access token](https://huggingface.co/docs/hu
 To generate 90 degree rotation illusions we can use the below command. This will create 10 samples, at 3 different sizes: 64×64, 256×256, and 1024×1024. See below for commands to generate more types of multi-view illusions.
 
 ```
-python generate.py --name rotate_cw.village.horse --prompts "a snowy mountain village" "a horse" --style "an oil painting of" --views identity rotate_cw --num_samples 10 --num_inference_steps 30 --guidance_scale 10.0 --generate_1024
+uv run python generate.py --name rotate_cw.village.horse --prompts "a snowy mountain village" "a horse" --style "an oil painting of" --views identity rotate_cw --num_samples 10 --num_inference_steps 30 --guidance_scale 10.0 --generate_1024
 ```
 
 Here is a description of useful arguments:
@@ -93,7 +92,7 @@ We use the first two stages of DeepFloyd IF to generate a 64×64 and 256×256 mu
 To animate the above two view illusion, we can run the below command. This command should work for all three sizes at which we sample (64×64, 256×256, and 1024x1024), although honestly 64×64 is very small and looks quite bad.
 
 ```
-python animate.py --im_path results/rotate_cw.village.horse/0000/sample_1024.png --metadata_path results/rotate_cw.village.horse/metadata.pkl
+uv run python animate.py --im_path results/rotate_cw.village.horse/0000/sample_1024.png --metadata_path results/rotate_cw.village.horse/metadata.pkl
 ```
 
 Here is a description of useful arguments:
