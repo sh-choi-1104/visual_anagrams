@@ -1,41 +1,41 @@
 from __future__ import annotations
 
+import math
 import random
 
 import torch
-from diffusers.loaders import AttnProcsLayers
-from diffusers.models.attention_processor import LoRAAttnProcessor
+
+import visual_anagrams.transformers_compat  # noqa: F401
+from peft import LoraConfig
 
 
-def create_unet_lora_layers(unet, rank: int = 16) -> AttnProcsLayers:
-    lora_attn_procs = {}
-    block_out_channels = list(unet.config.block_out_channels)
-    reversed_block_out_channels = list(reversed(block_out_channels))
+def create_unet_lora_layers(
+    unet,
+    rank: int = 16,
+    alpha: int | None = None,
+    adapter_name: str = "default",
+) -> torch.nn.ParameterList:
+    if rank <= 0:
+        raise ValueError(f"`rank` must be positive, got {rank}.")
 
-    for name in unet.attn_processors.keys():
-        if name.startswith("mid_block"):
-            hidden_size = block_out_channels[-1]
-        elif name.startswith("up_blocks"):
-            block_id = int(name.split(".")[1])
-            hidden_size = reversed_block_out_channels[block_id]
-        elif name.startswith("down_blocks"):
-            block_id = int(name.split(".")[1])
-            hidden_size = block_out_channels[block_id]
-        else:
-            raise ValueError(f"Could not infer hidden size for attention processor `{name}`.")
+    target_modules = ["to_q", "to_k", "to_v", "to_out.0"]
+    lora_config = LoraConfig(
+        r=rank,
+        lora_alpha=alpha or rank,
+        target_modules=target_modules,
+        lora_dropout=0.0,
+        bias="none",
+        init_lora_weights="gaussian",
+    )
+    unet.add_adapter(lora_config, adapter_name=adapter_name)
 
-        cross_attention_dim = None if name.endswith("attn1.processor") else unet.config.cross_attention_dim
-        lora_attn_procs[name] = LoRAAttnProcessor(
-            hidden_size=hidden_size,
-            cross_attention_dim=cross_attention_dim,
-            rank=rank,
-        )
+    trainable_parameters = torch.nn.ParameterList(
+        [parameter for parameter in unet.parameters() if parameter.requires_grad]
+    )
+    if len(trainable_parameters) == 0:
+        raise RuntimeError("No trainable LoRA parameters were created on the UNet.")
 
-    unet.set_attn_processor(lora_attn_procs)
-    lora_layers = AttnProcsLayers(unet.attn_processors)
-    for parameter in lora_layers.parameters():
-        parameter.requires_grad_(True)
-    return lora_layers
+    return trainable_parameters
 
 
 def select_train_step_indices(
@@ -80,3 +80,48 @@ def total_variation_loss(images: torch.Tensor) -> torch.Tensor:
     diff_h = images[:, :, 1:, :] - images[:, :, :-1, :]
     diff_w = images[:, :, :, 1:] - images[:, :, :, :-1]
     return diff_h.abs().mean() + diff_w.abs().mean()
+
+
+def interpolate_weight(start: float, end: float, progress: float, schedule: str = "linear", exponent: float = 1.0) -> float:
+    progress = min(max(progress, 0.0), 1.0)
+    if schedule == "linear":
+        scaled_progress = progress
+    elif schedule == "cosine":
+        scaled_progress = 0.5 - 0.5 * math.cos(progress * math.pi)
+    else:
+        raise ValueError(f"Unsupported schedule `{schedule}`.")
+
+    scaled_progress = scaled_progress**exponent
+    return start + (end - start) * scaled_progress
+
+
+def compute_hybrid_reward_weights(
+    *,
+    denoising_progress: float,
+    close_base_weight: float,
+    far_base_weight: float,
+    min_weight_scale: float = 0.25,
+    schedule: str = "linear",
+    exponent: float = 1.0,
+    far_early_boost: float = 0.0,
+    far_early_boost_exponent: float = 1.0,
+) -> tuple[float, float]:
+    min_weight_scale = min(max(min_weight_scale, 0.0), 1.0)
+    far_early_boost = max(far_early_boost, 0.0)
+    far_early_boost_exponent = max(far_early_boost_exponent, 1e-6)
+    close_scale = interpolate_weight(
+        start=min_weight_scale,
+        end=1.0,
+        progress=denoising_progress,
+        schedule=schedule,
+        exponent=exponent,
+    )
+    far_scale = interpolate_weight(
+        start=1.0,
+        end=min_weight_scale,
+        progress=denoising_progress,
+        schedule=schedule,
+        exponent=exponent,
+    )
+    far_early_scale = 1.0 + far_early_boost * ((1.0 - min(max(denoising_progress, 0.0), 1.0)) ** far_early_boost_exponent)
+    return close_base_weight * close_scale, far_base_weight * far_scale * far_early_scale

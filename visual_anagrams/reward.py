@@ -85,7 +85,7 @@ class HPSv2RewardModel:
 
         model, _, _ = create_model_and_transforms(
             "ViT-H-14",
-            "laion2B-s32B-b79K",
+            None,
             precision="amp",
             device=device,
             jit=False,

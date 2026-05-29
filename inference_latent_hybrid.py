@@ -12,6 +12,7 @@ from visual_anagrams.latent_hybrid import (
     load_sdxl_pipeline,
     ordered_prompts,
     prepare_sdxl_conditioning,
+    resolve_guidance_scales,
     resolve_dtype,
     sample_latent_hybrid,
     save_hybrid_sample,
@@ -42,9 +43,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--num_samples", default=1, type=int)
     parser.add_argument("--num_inference_steps", default=30, type=int)
     parser.add_argument("--guidance_scale", default=7.5, type=float)
+    parser.add_argument("--guidance_scale_far", default=None, type=float)
+    parser.add_argument("--guidance_scale_close", default=None, type=float)
     parser.add_argument("--reduction", default="sum", choices=["sum", "mean", "alternate"])
+    parser.add_argument("--composition_space", default="latent_eps", choices=["latent_eps", "decoded_x0_rgb"])
     parser.add_argument("--latent_sigma", default=1.5, type=float)
     parser.add_argument("--latent_kernel_size", default=9, type=int)
+    parser.add_argument("--rgb_hybrid_sigma", default=10.0, type=float)
+    parser.add_argument("--rgb_hybrid_kernel_size", default=51, type=int)
     parser.add_argument("--far_resize_factor", default=0.35, type=float)
     parser.add_argument("--far_blur_sigma", default=6.0, type=float)
     parser.add_argument("--device", default="cuda", type=str)
@@ -109,22 +115,28 @@ def run_pass(
     samples = []
     for sample_index, initial_latents_cpu in enumerate(initial_latents):
         seed = args.seed + sample_index
-        sample = sample_latent_hybrid(
-            pipeline,
-            conditioning,
-            height=args.height,
-            width=args.width,
-            num_inference_steps=args.num_inference_steps,
-            guidance_scale=args.guidance_scale,
-            reduction=args.reduction,
-            latent_sigma=args.latent_sigma,
-            latent_kernel_size=args.latent_kernel_size,
-            far_resize_factor=args.far_resize_factor,
-            far_blur_sigma=args.far_blur_sigma,
-            generator=make_generator(seed, args.device),
-            latents=initial_latents_cpu.to(device=args.device, dtype=conditioning.prompt_embeds.dtype).clone(),
-            show_progress=True,
-        )
+        with torch.inference_mode():
+            sample = sample_latent_hybrid(
+                pipeline,
+                conditioning,
+                height=args.height,
+                width=args.width,
+                num_inference_steps=args.num_inference_steps,
+                guidance_scale=args.guidance_scale,
+                guidance_scale_far=args.guidance_scale_far,
+                guidance_scale_close=args.guidance_scale_close,
+                reduction=args.reduction,
+                latent_sigma=args.latent_sigma,
+                latent_kernel_size=args.latent_kernel_size,
+                composition_space=args.composition_space,
+                rgb_hybrid_sigma=args.rgb_hybrid_sigma,
+                rgb_hybrid_kernel_size=args.rgb_hybrid_kernel_size,
+                far_resize_factor=args.far_resize_factor,
+                far_blur_sigma=args.far_blur_sigma,
+                generator=make_generator(seed, args.device),
+                latents=initial_latents_cpu.to(device=args.device, dtype=conditioning.prompt_embeds.dtype).clone(),
+                show_progress=True,
+            )
         sample_dir = output_root / f"{seed:04d}"
         sample_dir.mkdir(parents=True, exist_ok=True)
         save_hybrid_sample(sample, sample_dir, prefix=prefix)
@@ -181,14 +193,26 @@ def main() -> None:
         "num_samples": args.num_samples,
         "num_inference_steps": args.num_inference_steps,
         "guidance_scale": args.guidance_scale,
+        "guidance_scale_far": args.guidance_scale_far,
+        "guidance_scale_close": args.guidance_scale_close,
         "reduction": args.reduction,
+        "composition_space": args.composition_space,
         "latent_sigma": args.latent_sigma,
         "latent_kernel_size": args.latent_kernel_size,
+        "rgb_hybrid_sigma": args.rgb_hybrid_sigma,
+        "rgb_hybrid_kernel_size": args.rgb_hybrid_kernel_size,
         "far_resize_factor": args.far_resize_factor,
         "far_blur_sigma": args.far_blur_sigma,
         "compare_lora_path": args.compare_lora_path,
         "modes": ["baseline"] if args.compare_lora_path is None else ["baseline", "tuned"],
     }
+    resolved_guidance_scale_far, resolved_guidance_scale_close = resolve_guidance_scales(
+        guidance_scale=args.guidance_scale,
+        guidance_scale_far=args.guidance_scale_far,
+        guidance_scale_close=args.guidance_scale_close,
+    )
+    metadata["resolved_guidance_scale_far"] = resolved_guidance_scale_far
+    metadata["resolved_guidance_scale_close"] = resolved_guidance_scale_close
     with open(output_root / "metadata.json", "w", encoding="utf-8") as file:
         json.dump(metadata, file, ensure_ascii=False, indent=2)
 

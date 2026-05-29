@@ -1,5 +1,10 @@
 results/
 results*
+results_latent/
+results_latent_inference/
+results_latent_reward/
+compare_online_best/
+data_link/
 .vscode/
 __pycache__/
 .venv/
