@@ -1,0 +1,29 @@
+{
+  "ref_im_path": "assets/vgi.png",
+  "save_dir": "results/notion_vgi_rgb_posthoc_stronger_20260601",
+  "model_family": "both",
+  "sdxl_model": "/data/models/sdxl-base-1.0",
+  "flux_model": "/data/models/FLUX.1-dev",
+  "prompt": "a clean colorful cartoon illustration of the same university building photo, cel shaded, crisp ink outlines, simplified architectural details, bright natural colors",
+  "negative_prompt": "blurry, low quality, deformed architecture, distorted perspective, extra buildings, watermark",
+  "height": 512,
+  "width": 512,
+  "num_inference_steps": 28,
+  "seed": 778,
+  "sdxl_guidance_scale": 5.0,
+  "flux_guidance_scale": 3.5,
+  "flux_true_cfg_scale": 1.0,
+  "strengths": [
+    "0.55",
+    "0.70"
+  ],
+  "sigmas": [
+    "6",
+    "8"
+  ],
+  "projection_strength": 1.0,
+  "far_resize_factor": 0.25,
+  "far_blur_sigma": 2.0,
+  "device": "cuda",
+  "max_sequence_length": 256
+}
